@@ -15,8 +15,8 @@ const PopupAtendimento = ({ onClose }: PopupAtendimentoProps) => {
   };
 
   const handleWhatsAppClick = () => {
-    const phoneNumber = "5511999999999";
-    const message = encodeURIComponent("Olá! Vi o popup no site e gostaria de personalizar meus produtos com a Estamparia Codinhoto!");
+    const phoneNumber = "5511949430374";
+    const message = encodeURIComponent("Olá! Gostaria de criar produtos personalizados com a Estamparia Codinhoto!");
     window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
     handleClose();
   };
@@ -46,7 +46,7 @@ const PopupAtendimento = ({ onClose }: PopupAtendimentoProps) => {
             Personalize seus produtos agora com a Estamparia Codinhoto! Nossa equipe está pronta para atender suas necessidades.
           </p>
           <p className="text-gray-700 font-semibold">
-            15 anos de experiência em personalização de alta qualidade!
+            25 anos de experiência em personalização de alta qualidade!
           </p>
         </div>
         

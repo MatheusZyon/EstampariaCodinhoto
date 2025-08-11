@@ -24,6 +24,9 @@ import parceiro3Img from '../../assets/parceiro3.png';
 import bannerCamisetaImg from '../../assets/banner_camiseta_logo.png';
 import bannerEcobagImg from '../../assets/banner_ecobag_logo.png';
 
+// === 1. NOVA IMAGEM IMPORTADA AQUI ===
+import bannerNovoImg from '../../assets/banner_novo.png';
+
 // IMAGENS DA GALERIA
 import eco1 from '../../assets/ECO_1.jpeg';
 import eco2 from '../../assets/ECO_2.jpeg';
@@ -60,11 +63,9 @@ const AnimatedCard = ({ children, className = "", delay = 0 }: { children: React
   );
 };
 
-// === AQUI ESTÁ A CORREÇÃO ===
 const AnimatedCounter = ({ end, duration = 2, suffix = "", prefix = "", decimals = 0 }: { end: number, duration?: number, suffix?: string, prefix?: string, decimals?: number }) => {
   const [count, setCount] = useState(0);
   const ref = useRef(null);
-  // Adicionada a propriedade "amount: 0.5" para tornar o gatilho mais confiável
   const isInView = useInView(ref, { once: true, amount: 0.5 });
 
   useEffect(() => {
@@ -158,7 +159,10 @@ const Home = () => {
           <div className="container mx-auto px-4">
             <div className="flex flex-col md:flex-row items-center gap-12">
               <motion.div className="md:w-1/2" initial={{ opacity: 0, x: -50 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.8, ease: "easeOut" }}><h2 className="text-3xl md:text-4xl font-bold mb-5 text-gray-800">Brindes para empresas e marcas que valorizam qualidade</h2><p className="text-lg text-gray-600 mb-6">Além da prestação de serviço de personalização, oferecemos aos nossos clientes a possibilidade de adquirir o produto já personalizado!</p><ul className="space-y-3 text-gray-700 mb-8 list-disc list-inside"><li>Camisetas e Uniformes</li><li>Ecobags</li><li>Mochila Saco</li><li>E muito mais!</li></ul><p className="text-gray-600 mb-8">Atendemos sob demanda com o pedido minimo de 20 unidades.</p><motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}><Link to="/produtos" className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-10 rounded-lg transition duration-300 inline-block shadow-md">Conheça Nossos Produtos</Link></motion.div></motion.div>
-              <motion.div className="md:w-1/2" initial={{ opacity: 0, scale: 0.8 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.8, ease: "easeOut" }}><img src={bannerCamisetaImg} alt="Produtos personalizados Codinhoto" className="rounded-xl shadow-xl w-full" /></motion.div>
+              <motion.div className="md:w-1/2" initial={{ opacity: 0, scale: 0.8 }} whileInView={{ opacity: 1, scale: 1 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.8, ease: "easeOut" }}>
+                {/* === 2. IMAGEM SUBSTITUÍDA AQUI === */}
+                <img src={bannerNovoImg} alt="Produtos personalizados Codinhoto" className="rounded-xl shadow-xl w-full" />
+              </motion.div>
             </div>
           </div>
         </AnimatedSection>

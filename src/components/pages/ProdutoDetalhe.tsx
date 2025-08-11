@@ -70,8 +70,15 @@ interface IProduto {
 
 const ProdutoDetalhe = () => {
   const { id } = useParams();
-  const [quantidade, setQuantidade] = useState(20);
-  const [tamanho, setTamanho] = useState('');
+  
+  // === ESTADOS PARA QUANTIDADE POR TAMANHO ===
+  const [quantidadesPorTamanho, setQuantidadesPorTamanho] = useState<{ [key: string]: number }>({});
+  const [totalQuantidade, setTotalQuantidade] = useState(0);
+  
+  // Estados para produtos que não são camisetas
+  const [quantidadeSimples, setQuantidadeSimples] = useState(20);
+  const [tamanhoSimples, setTamanhoSimples] = useState('');
+
   const [, setArquivo] = useState<File | null>(null);
   const [mensagem, setMensagem] = useState('');
   const [erroQuantidade, setErroQuantidade] = useState(false);
@@ -190,6 +197,21 @@ const ProdutoDetalhe = () => {
   };
 
   const produto = id ? produtos[id as keyof typeof produtos] : null;
+
+  useEffect(() => {
+    if (id === 'camiseta') {
+      const total = Object.values(quantidadesPorTamanho).reduce((soma, qtde) => soma + qtde, 0);
+      setTotalQuantidade(total);
+    }
+  }, [quantidadesPorTamanho, id]);
+
+  useEffect(() => {
+    if (!produto) return;
+    const quantidadeAtual = id === 'camiseta' ? totalQuantidade : quantidadeSimples;
+    setErroQuantidade(quantidadeAtual > 0 && quantidadeAtual < produto.minimo);
+  }, [totalQuantidade, quantidadeSimples, produto, id]);
+
+
   useEffect(() => { window.scrollTo(0, 0); }, [id]);
   const openLightbox = (index: number) => { setLightboxIndex(index); setLightboxOpen(true); };
 
@@ -203,18 +225,48 @@ const ProdutoDetalhe = () => {
     );
   }
 
-  const handleQuantidadeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const valor = parseInt(e.target.value);
-    setQuantidade(valor);
-    setErroQuantidade(valor < produto.minimo);
+  const handleAumentar = (tamanho: string) => {
+    setQuantidadesPorTamanho(prev => ({ ...prev, [tamanho]: (prev[tamanho] || 0) + 1 }));
   };
+
+  const handleDiminuir = (tamanho: string) => {
+    setQuantidadesPorTamanho(prev => {
+      const novaQuantidade = (prev[tamanho] || 0) - 1;
+      return { ...prev, [tamanho]: Math.max(0, novaQuantidade) };
+    });
+  };
+
   const handleArquivoChange = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files[0]) { setArquivo(e.target.files[0]); } };
+  
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (quantidade < produto.minimo) { setErroQuantidade(true); return; }
-    const tamanhoSelecionado = tamanho || 'Não aplicável';
+
+    const quantidadeFinal = id === 'camiseta' ? totalQuantidade : quantidadeSimples;
+    if (quantidadeFinal < produto.minimo) {
+      setErroQuantidade(true);
+      return;
+    }
+
+    let detalhesTamanho = '';
+    if (id === 'camiseta') {
+      detalhesTamanho = Object.entries(quantidadesPorTamanho)
+        .filter(([, qtde]) => qtde > 0)
+        .map(([tamanho, qtde]) => `${qtde}x ${tamanho}`)
+        .join(', ');
+      if (!detalhesTamanho) detalhesTamanho = 'Nenhum tamanho selecionado';
+    } else {
+      detalhesTamanho = tamanhoSimples || 'Não aplicável';
+    }
+
     const mensagemTexto = mensagem || 'Sem observações adicionais';
-    const mensagemWhatsApp = encodeURIComponent(`Olá! Gostaria de solicitar um orçamento para:\n\nProduto: ${produto.nome}\nQuantidade: ${quantidade} unidades\nTamanho: ${tamanhoSelecionado}\nObservações: ${mensagemTexto}\n\nEnviarei o arquivo com o logo separadamente.`);
+    const mensagemWhatsApp = encodeURIComponent(
+      `Olá! Gostaria de solicitar um orçamento para:\n\n` +
+      `Produto: ${produto.nome}\n` +
+      `Quantidade Total: ${quantidadeFinal} unidades\n` +
+      `Detalhes de Tamanho: ${detalhesTamanho}\n` +
+      `Observações: ${mensagemTexto}\n\n` +
+      `Enviarei o arquivo com o logo separadamente.`
+    );
     window.open(`https://wa.me/5511949430374?text=${mensagemWhatsApp}`, '_blank');
   };
 
@@ -224,8 +276,7 @@ const ProdutoDetalhe = () => {
   return (
     <>
       <div className="pt-20 bg-gray-50">
-        {/* SEÇÃO DO BREADCRUMB REMOVIDA */}
-
+       
         {id === 'camiseta' && (
           <motion.section className="py-16 bg-gradient-to-br from-red-600 to-red-800" initial="hidden" animate="visible" viewport={{ once: true, amount: 0.3 }} variants={sectionVariants}>
             <div className="container mx-auto px-4"><div className="flex flex-col md:flex-row items-center gap-12"><motion.div className="md:w-1/2" variants={itemVariants}><img src={equipeUniformeImg} alt="Equipe usando uniformes personalizados" className="rounded-xl shadow-2xl w-full transform hover:scale-105 transition-transform duration-500" /></motion.div><motion.div className="md:w-1/2" variants={itemVariants}><h2 className="text-4xl font-extrabold mb-6 text-white leading-tight">Uniformize sua Equipe com <span className="text-yellow-400">Estilo e Profissionalismo</span></h2><p className="text-gray-100 mb-8 text-lg">Com a Estamparia Codinhoto, você garante camisetas de alta qualidade, personalizadas com precisão e entregues no prazo, assegurando que sua equipe esteja sempre apresentável e alinhada com os valores da sua empresa.</p><motion.a href="#orcamento" className="bg-yellow-400 hover:bg-yellow-500 text-red-800 font-bold py-3 px-10 rounded-lg shadow-lg transition duration-300 transform hover:-translate-y-1 inline-flex items-center text-lg" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 mr-3"><path d="M12 2C6.48 2 2 6.48 2 12C2 13.96 2.54 15.75 3.44 17.29L2.05 21.29C1.99 21.48 2.05 21.69 2.21 21.83C2.36 21.97 2.58 22.01 2.77 21.93L6.93 20.48C8.4 21.3 10.13 21.79 12 21.79C17.52 21.79 22 17.31 22 11.79C22 6.27 17.52 2 12 2ZM17.03 15.37C16.86 15.83 16.03 16.25 15.63 16.32C15.28 16.37 14.85 16.4 14.37 16.27C14.06 16.19 13.66 16.07 13.14 15.87C10.88 14.95 9.44 12.75 9.34 12.63C9.25 12.5 8.38 11.35 8.38 10.14C8.38 8.93 9 8.35 9.21 8.14C9.42 7.93 9.67 7.88 9.83 7.88C9.98 7.88 10.14 7.88 10.27 7.89C10.41 7.9 10.59 7.84 10.77 8.25C10.95 8.67 11.38 9.88 11.43 9.97C11.47 10.07 11.5 10.18 11.45 10.31C11.39 10.44 11.36 10.52 11.26 10.64C11.16 10.76 11.05 10.91 10.96 11C10.86 11.1 10.75 11.21 10.87 11.41C10.99 11.61 11.38 12.26 11.97 12.79C12.71 13.47 13.33 13.69 13.55 13.79C13.76 13.89 13.88 13.88 14 13.75C14.12 13.63 14.5 13.19 14.64 12.97C14.78 12.76 14.92 12.79 15.11 12.86C15.3 12.93 16.51 13.53 16.72 13.63C16.92 13.74 17.06 13.79 17.11 13.88C17.15 13.97 17.15 14.38 17.03 15.37Z" /></svg>Solicitar Orçamento Rápido</motion.a></motion.div></div></div>
@@ -253,7 +304,47 @@ const ProdutoDetalhe = () => {
         </motion.div>
         
         <motion.section id="orcamento" className="py-16 bg-white" initial="hidden" whileInView="visible" viewport={{ once: true, amount: 0.2 }} variants={sectionVariants}>
-          <div className="container mx-auto px-4"><div className="bg-gray-50 p-8 md:p-12 rounded-xl shadow-lg border border-gray-200"><h2 className="text-3xl font-bold mb-10 text-center text-gray-800">Detalhes e Orçamento</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-10"><motion.div variants={itemVariants}><h3 className="text-2xl font-semibold mb-6 text-gray-700">Informações do Produto</h3><p className="text-gray-600 mb-6 text-base leading-relaxed">{produto.detalhes}</p><div className="space-y-5"><div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center gap-4 transition-shadow hover:shadow-md"><div className="bg-red-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-1.207 1.207" /></svg></div><div><h4 className="font-semibold text-gray-800">Material</h4><p className="text-gray-600">{produto.material}</p></div></div><div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center gap-4 transition-shadow hover:shadow-md"><div className="bg-yellow-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" /></svg></div><div><h4 className="font-semibold text-gray-800">Pedido mínimo</h4><p className="text-gray-600">{produto.minimo} unidades</p></div></div><div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center gap-4 transition-shadow hover:shadow-md"><div className="bg-blue-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg></div><div><h4 className="font-semibold text-gray-800">Personalização</h4><p className="text-gray-600">Serigrafia ou DTF</p></div></div></div></motion.div><motion.div variants={itemVariants}><h3 className="text-2xl font-semibold mb-6 text-gray-700">Solicitar Orçamento</h3><form onSubmit={handleSubmit} className="space-y-5"><div><label htmlFor="quantidade" className="block text-gray-700 font-medium mb-2">Quantidade</label><input type="number" id="quantidade" value={quantidade} onChange={handleQuantidadeChange} min={produto.minimo} className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors duration-300 ${ erroQuantidade ? 'border-red-500 ring-red-300' : 'border-gray-300 focus:border-red-500 focus:ring-red-300' }`} />{!erroQuantidade && (<p className="text-gray-500 text-sm mt-1">Pedido mínimo: {produto.minimo} unidades</p>)}{erroQuantidade && (<p className="text-red-600 text-sm mt-1">Pedido mínimo: {produto.minimo} unidades</p>)}</div><div><label htmlFor="tamanho" className="block text-gray-700 font-medium mb-2">Tamanho</label><select id="tamanho" value={tamanho} onChange={(e) => setTamanho(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-red-500 focus:ring-red-300 transition-colors duration-300 appearance-none bg-white bg-no-repeat bg-right pr-8" style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.75rem center', backgroundSize: '1.5em 1.5em' }}><option value="">Selecione um tamanho</option>{produto.tamanhos.map((t) => (<option key={t} value={t}>{t}</option>))}</select></div><div><label htmlFor="arquivo" className="block text-gray-700 font-medium mb-2">Arquivo com Logo (opcional)</label><input type="file" id="arquivo" onChange={handleArquivoChange} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 transition-colors duration-300 cursor-pointer border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-red-500 focus:ring-red-300" /><p className="text-gray-500 text-sm mt-1">Formatos aceitos: JPG, PNG, PDF, AI</p></div><div><label htmlFor="mensagem" className="block text-gray-700 font-medium mb-2">Mensagem (opcional)</label><textarea id="mensagem" value={mensagem} onChange={(e) => setMensagem(e.target.value)} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-red-500 focus:ring-red-300 transition-colors duration-300" placeholder="Informe detalhes adicionais sobre seu pedido..."></textarea></div><motion.button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-4 rounded-lg shadow-md transition duration-300 flex items-center justify-center text-lg transform hover:-translate-y-0.5" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 mr-3"><path d="M12 2C6.48 2 2 6.48 2 12C2 13.96 2.54 15.75 3.44 17.29L2.05 21.29C1.99 21.48 2.05 21.69 2.21 21.83C2.36 21.97 2.58 22.01 2.77 21.93L6.93 20.48C8.4 21.3 10.13 21.79 12 21.79C17.52 21.79 22 17.31 22 11.79C22 6.27 17.52 2 12 2ZM17.03 15.37C16.86 15.83 16.03 16.25 15.63 16.32C15.28 16.37 14.85 16.4 14.37 16.27C14.06 16.19 13.66 16.07 13.14 15.87C10.88 14.95 9.44 12.75 9.34 12.63C9.25 12.5 8.38 11.35 8.38 10.14C8.38 8.93 9 8.35 9.21 8.14C9.42 7.93 9.67 7.88 9.83 7.88C9.98 7.88 10.14 7.88 10.27 7.89C10.41 7.9 10.59 7.84 10.77 8.25C10.95 8.67 11.38 9.88 11.43 9.97C11.47 10.07 11.5 10.18 11.45 10.31C11.39 10.44 11.36 10.52 11.26 10.64C11.16 10.76 11.05 10.91 10.96 11C10.86 11.1 10.75 11.21 10.87 11.41C10.99 11.61 11.38 12.26 11.97 12.79C12.71 13.47 13.33 13.69 13.55 13.79C13.76 13.89 13.88 13.88 14 13.75C14.12 13.63 14.5 13.19 14.64 12.97C14.78 12.76 14.92 12.79 15.11 12.86C15.3 12.93 16.51 13.53 16.72 13.63C16.92 13.74 17.06 13.79 17.11 13.88C17.15 13.97 17.15 14.38 17.03 15.37Z" /></svg>Solicitar Orçamento via WhatsApp</motion.button></form></motion.div>
+          <div className="container mx-auto px-4"><div className="bg-gray-50 p-8 md:p-12 rounded-xl shadow-lg border border-gray-200"><h2 className="text-3xl font-bold mb-10 text-center text-gray-800">Detalhes e Orçamento</h2><div className="grid grid-cols-1 md:grid-cols-2 gap-10"><motion.div variants={itemVariants}><h3 className="text-2xl font-semibold mb-6 text-gray-700">Informações do Produto</h3><p className="text-gray-600 mb-6 text-base leading-relaxed">{produto.detalhes}</p><div className="space-y-5"><div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center gap-4 transition-shadow hover:shadow-md"><div className="bg-red-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-1.207 1.207" /></svg></div><div><h4 className="font-semibold text-gray-800">Material</h4><p className="text-gray-600">{produto.material}</p></div></div><div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center gap-4 transition-shadow hover:shadow-md"><div className="bg-yellow-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4" /></svg></div><div><h4 className="font-semibold text-gray-800">Pedido mínimo</h4><p className="text-gray-600">{produto.minimo} unidades</p></div></div><div className="bg-white p-5 rounded-lg shadow-sm border border-gray-100 flex items-center gap-4 transition-shadow hover:shadow-md"><div className="bg-blue-100 p-3 rounded-full"><svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg></div><div><h4 className="font-semibold text-gray-800">Personalização</h4><p className="text-gray-600">Serigrafia ou DTF</p></div></div></div></motion.div><motion.div variants={itemVariants}><h3 className="text-2xl font-semibold mb-6 text-gray-700">Solicitar Orçamento</h3><form onSubmit={handleSubmit} className="space-y-5">
+              {id === 'camiseta' ? (
+                <div>
+                  <label className="block text-gray-700 font-medium mb-4">Tamanhos e Quantidades</label>
+                  <div className="space-y-3">
+                    {produto.tamanhos.map((tamanhoItem) => (
+                      <div key={tamanhoItem} className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200">
+                        <span className="font-medium text-gray-800 w-12">{tamanhoItem}</span>
+                        <div className="flex items-center gap-3">
+                          <button type="button" onClick={() => handleDiminuir(tamanhoItem)} className="w-8 h-8 rounded-full bg-gray-200 hover:bg-gray-300 text-lg font-bold flex items-center justify-center transition-colors">-</button>
+                          <span className="w-12 text-center font-semibold text-gray-700">{quantidadesPorTamanho[tamanhoItem] || 0}</span>
+                          <button type="button" onClick={() => handleAumentar(tamanhoItem)} className="w-8 h-8 rounded-full bg-red-500 hover:bg-red-600 text-white text-lg font-bold flex items-center justify-center transition-colors">+</button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 text-right">
+                    <p className="text-gray-800 font-bold text-lg">Total: <span className="text-red-600">{totalQuantidade}</span> peças</p>
+                    {erroQuantidade ? (<p className="text-red-600 text-sm mt-1">Pedido mínimo: {produto.minimo} unidades</p>) : (<p className="text-gray-500 text-sm mt-1">Pedido mínimo: {produto.minimo} unidades</p>)}
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label htmlFor="quantidade" className="block text-gray-700 font-medium mb-2">Quantidade</label>
+                    <input type="number" id="quantidade" value={quantidadeSimples} onChange={(e) => setQuantidadeSimples(parseInt(e.target.value))} min={produto.minimo} className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors duration-300 ${ erroQuantidade ? 'border-red-500 ring-red-300' : 'border-gray-300 focus:border-red-500 focus:ring-red-300' }`} />
+                    {!erroQuantidade && (<p className="text-gray-500 text-sm mt-1">Pedido mínimo: {produto.minimo} unidades</p>)}
+                    {erroQuantidade && (<p className="text-red-600 text-sm mt-1">Pedido mínimo: {produto.minimo} unidades</p>)}
+                  </div>
+                  {produto.tamanhos.length > 1 && (
+                    <div>
+                      <label htmlFor="tamanho" className="block text-gray-700 font-medium mb-2">Tamanho</label>
+                      <select id="tamanho" value={tamanhoSimples} onChange={(e) => setTamanhoSimples(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-red-500 focus:ring-red-300 transition-colors duration-300 appearance-none bg-white bg-no-repeat bg-right pr-8" style={{ backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`, backgroundPosition: 'right 0.75rem center', backgroundSize: '1.5em 1.5em' }}>
+                        <option value="">Selecione um tamanho</option>
+                        {produto.tamanhos.map((t) => (<option key={t} value={t}>{t}</option>))}
+                      </select>
+                    </div>
+                  )}
+                </>
+              )}
+              <div><label htmlFor="arquivo" className="block text-gray-700 font-medium mb-2">Arquivo com Logo (opcional)</label><input type="file" id="arquivo" onChange={handleArquivoChange} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 transition-colors duration-300 cursor-pointer border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-red-500 focus:ring-red-300" /><p className="text-gray-500 text-sm mt-1">Formatos aceitos: JPG, PNG, PDF, AI</p></div><div><label htmlFor="mensagem" className="block text-gray-700 font-medium mb-2">Mensagem (opcional)</label><textarea id="mensagem" value={mensagem} onChange={(e) => setMensagem(e.target.value)} rows={4} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-red-500 focus:ring-red-300 transition-colors duration-300" placeholder="Informe detalhes adicionais sobre seu pedido..."></textarea></div><motion.button type="submit" className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-4 rounded-lg shadow-md transition duration-300 flex items-center justify-center text-lg transform hover:-translate-y-0.5" whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.98 }}><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 mr-3"><path d="M12 2C6.48 2 2 6.48 2 12C2 13.96 2.54 15.75 3.44 17.29L2.05 21.29C1.99 21.48 2.05 21.69 2.21 21.83C2.36 21.97 2.58 22.01 2.77 21.93L6.93 20.48C8.4 21.3 10.13 21.79 12 21.79C17.52 21.79 22 17.31 22 11.79C22 6.27 17.52 2 12 2ZM17.03 15.37C16.86 15.83 16.03 16.25 15.63 16.32C15.28 16.37 14.85 16.4 14.37 16.27C14.06 16.19 13.66 16.07 13.14 15.87C10.88 14.95 9.44 12.75 9.34 12.63C9.25 12.5 8.38 11.35 8.38 10.14C8.38 8.93 9 8.35 9.21 8.14C9.42 7.93 9.67 7.88 9.83 7.88C9.98 7.88 10.14 7.88 10.27 7.89C10.41 7.9 10.59 7.84 10.77 8.25C10.95 8.67 11.38 9.88 11.43 9.97C11.47 10.07 11.5 10.18 11.45 10.31C11.39 10.44 11.36 10.52 11.26 10.64C11.16 10.76 11.05 10.91 10.96 11C10.86 11.1 10.75 11.21 10.87 11.41C10.99 11.61 11.38 12.26 11.97 12.79C12.71 13.47 13.33 13.69 13.55 13.79C13.76 13.89 13.88 13.88 14 13.75C14.12 13.63 14.5 13.19 14.64 12.97C14.78 12.76 14.92 12.79 15.11 12.86C15.3 12.93 16.51 13.53 16.72 13.63C16.92 13.74 17.06 13.79 17.11 13.88C17.15 13.97 17.15 14.38 17.03 15.37Z" /></svg>Solicitar Orçamento via WhatsApp</motion.button></form></motion.div>
               </div>
             </div>
           </div>
